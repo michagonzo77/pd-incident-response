@@ -69,7 +69,8 @@ resource "kubiya_webhook" "webhook" {
   prompt      = <<EOF
   """
   New webhook from PagerDuty! 
-  1. Echo the contents of the event: {{.event}} to a json file based on the current timestamp.
+  1. Echo the contents of the event {{.event}} to a file.
+    echo "{{.event}}" > "$event_file"
 
   2. Run the incident-response script by using the command: 
     incident-response "$event_file"
