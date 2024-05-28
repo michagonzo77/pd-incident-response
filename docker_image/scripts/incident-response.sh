@@ -10,7 +10,7 @@ create_ticket() {
     local slackincidentcommander="$5"
     local slackdetectionmethod="$6"
     local slackbusinessimpact="$7"
-    local incident_id="$8"  # Added incident_id parameter
+    local incident_id="$8"
     local payload="{\"description\": \"$description</br><strong>Incident Commander:</strong>$slackincidentcommander</br><strong>Detection Method:</strong>$slackdetectionmethod</br><strong>Business Impact:</strong>$slackbusinessimpact</br><strong>Ticket Link:</strong>$incident_url\", \"subject\": \"TESTING $servicename - $title\", \"email\": \"devsecops@aenetworks.com\", \"priority\": 1, \"status\": 2, \"source\": 8, \"category\": \"DevOps\", \"sub_category\": \"Pageout\", \"tags\": [\"PDID_$incident_id\"]}"
     curl -u $FSAPI_SANDBOX:X -H "Content-Type: application/json" -X POST -d "$payload" -o response.json "$url"
 }
@@ -46,7 +46,8 @@ incident_url=$(jq -r '.incident_url' <<< "$event_data")
 slackincidentcommander=$(jq -r '.slackincidentcommander' <<< "$event_data")
 slackdetectionmethod=$(jq -r '.slackdetectionmethod' <<< "$event_data")
 slackbusinessimpact=$(jq -r '.slackbusinessimpact' <<< "$event_data")
-incident_id=$(jq -r '.incident_id' <<< "$event_data")  # Extract incident_id
+incident_id=$(jq -r '.incident_id' <<< "$event_data")
+bridge_url=$(jq -r '.bridge_url' <<< "$event_data")
 
 # Create service ticket
 create_ticket "$description" "$servicename" "$title" "$incident_url" "$slackincidentcommander" "$slackdetectionmethod" "$slackbusinessimpact" "$incident_id"
@@ -60,4 +61,21 @@ export TICKET_ID
 # Generate ticket URL
 TICKET_URL="https://aenetworks-fs-sandbox.freshservice.com/a/tickets/$TICKET_ID"
 
-echo "Ticket URL: $TICKET_URL"
+# Format the message
+MESSAGE=$(cat <<EOF
+************** SEV 1 ****************
+Incident Commander: $slackincidentcommander
+Detection Method: $slackdetectionmethod
+Business Impact: $slackbusinessimpact
+Bridge Link: <$bridge_url|Bridge Link>
+Pagerduty Incident URL: $incident_url
+FS Ticket URL: $TICKET_URL
+We will keep everyone posted on this channel as we assess the issue further.
+EOF
+)
+
+# Export MESSAGE as an environment variable
+export MESSAGE
+
+# Send the message to the Slack channel
+slack send-message '#kubiya_testing' "$MESSAGE"
